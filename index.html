@@ -146,7 +146,7 @@ h1 em{font-style:normal;color:var(--gold)}
   <!-- 결과 화면 -->
   <section class="panel" id="pResult" hidden>
     <img class="result-img" id="resultImg" alt="결과 카드">
-    <p class="hint">저장이 안 되면 이미지를 길게 눌러(PC는 우클릭) 저장해 주세요</p>
+    <p class="hint">저장이 안 되면 이미지를 길게 눌러 저장</p>
     <div class="row">
       <button class="btn" id="saveBtn" type="button">이미지 저장</button>
       <button class="btn ghost" id="retryBtn" type="button">다시 도전 ▶</button>
@@ -219,9 +219,20 @@ const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /* ---------- 소리 (8비트 효과음) ---------- */
 let AC = null, soundOn = true;
-function ensureAudio(){
-  try{ if(!AC) AC = new (window.AudioContext||window.webkitAudioContext)(); if(AC.state==='suspended') AC.resume(); }catch(e){ AC = null; }
+// 아이폰: 무음(진동) 모드에서는 웹 효과음이 꺼지므로, 오디오 세션을 '재생' 모드로 바꿔 소리가 나게 함
+const SILENT_WAV='data:audio/wav;base64,UklGRkQDAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YSADAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==';
+let iosUnlocked=false;
+function unlockIOS(){
+  if(iosUnlocked) return; iosUnlocked=true;
+  try{ if(navigator.audioSession) navigator.audioSession.type='playback' }catch(e){}
+  try{ const a=new Audio(SILENT_WAV); a.setAttribute('playsinline',''); a.volume=0.01; const pr=a.play(); if(pr&&pr.catch) pr.catch(()=>{ iosUnlocked=false }) }catch(e){ iosUnlocked=false }
 }
+function ensureAudio(){
+  unlockIOS();
+  try{ if(!AC) AC = new (window.AudioContext||window.webkitAudioContext)(); if(AC.state!=='running') AC.resume(); }catch(e){ AC = null; }
+}
+// 버튼을 누를 때마다 오디오가 멈춰 있으면 다시 깨움 (아이폰은 화면 전환·전화 등으로 자주 멈춤)
+document.addEventListener('pointerdown',()=>{ if(soundOn) ensureAudio() },{passive:true});
 function tone(f,d,type='square',v=.05,when=0,slide=null){
   if(!soundOn||!AC) return;
   const t=AC.currentTime+when, o=AC.createOscillator(), g=AC.createGain();
